@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataLoom Token Redemption</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 350px; text-align: center; }
+        h2 { margin-top: 0; color: #1e293b; }
+        button { width: 100%; padding: 12px; margin-top: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-success { background: #10b981; color: white; display: none; }
+        input { padding: 12px; width: 85%; margin-top: 20px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; }
+        #status { margin-top: 15px; font-size: 13px; color: #64748b; min-height: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>💎 Redeem Rewards</h2>
+    <p style="color:#64748b; font-size: 14px;">Convert Travel Tokens to ETH</p>
+
+    <button id="connectBtn" class="btn-primary" onclick="connectWallet()">Connect Wallet</button>
+
+    <div id="redeemSection" style="display: none;">
+        <input type="number" id="amount" placeholder="Amount (e.g. 50)">
+        <button class="btn-success" onclick="redeem()">Confirm Swap</button>
+    </div>
+
+    <div id="status"></div>
+</div>
+
+<script>
+    const TOKEN_ADDRESS = "0x88Efc8044B92672aF82F7F4723C295E9dE12366F";
+    const REDEEMER_ADDRESS = "0x947149bf7FC4dD92888d70FbCC2e80f4Af6915d9";
+    // ⬆️⬆️ --------------------------- ⬆️⬆️
+
+    let provider, signer;
+    const tokenAbi = ["function approve(address spender, uint256 amount) public returns (bool)"];
+    const redeemerAbi = ["function redeemTokensForETH(uint256 amount) public"];
+
+    async function connectWallet() {
+        if (!window.ethereum) return alert("Install MetaMask!");
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        document.getElementById("connectBtn").style.display = "none";
+        document.getElementById("redeemSection").style.display = "block";
+        document.querySelector(".btn-success").style.display = "block";
+        document.getElementById("status").innerText = "✅ Wallet Connected";
+    }
+
+    async function redeem() {
+        const amt = document.getElementById("amount").value;
+        if (!amt) return;
+        const weiAmt = ethers.utils.parseUnits(amt, 18);
+        document.getElementById("status").innerText = "Step 1: Approving tokens...";
+        
+        try {
+            const token = new ethers.Contract(TOKEN_ADDRESS, tokenAbi, signer);
+            const tx1 = await token.approve(REDEEMER_ADDRESS, weiAmt);
+            await tx1.wait();
+
+            document.getElementById("status").innerText = "Step 2: Swapping for ETH...";
+            const red = new ethers.Contract(REDEEMER_ADDRESS, redeemerAbi, signer);
+            const tx2 = await red.redeemTokensForETH(weiAmt);
+            await tx2.wait();
+            
+            document.getElementById("status").innerText = "🎉 Success! ETH Received.";
+            alert("Swap Complete! Check your wallet.");
+        } catch (e) {
+            console.error(e);
+            alert("Error: " + e.message);
+        }
+    }
+</script>
+</body>
+</html>
